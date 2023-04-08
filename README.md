@@ -7,9 +7,9 @@ The script will skip images that are already in the target folder, even if they 
 Usage:
 1. Run the python file: jl_image_collector.py
 2. In the user interface:
-	a. Select the source folder (the folder with the images you want to copy).
-	b. Select the target folder (the folder where you want to copy the images).
-	c. Click "Start Copy".
+   a. Select the source folder (the folder with the images you want to copy).
+   b. Select the target folder (the folder where you want to copy the images).
+   c. Click "Start Copy".
 4. Wait for the script to finish and close the window.
 5. The copied images, together with a log file with all the images initially found, is now in the target folder.
 
