@@ -113,7 +113,6 @@ tk.Button(frame, text="Browse", command=browse_target).grid(row=1, column=2)
 tk.Button(frame, text="Start Copy", command=start_copy).grid(row=2, column=1, pady=10)
 tk.Label(frame, textvariable=result_text_var).grid(row=3, column=0, columnspan=3)
 
-
 progress_bar = ttk.Progressbar(frame, orient=tk.HORIZONTAL, mode='determinate')
 progress_bar.grid(row=4, column=0, columnspan=3, pady=0, sticky=tk.W+tk.E)
 
