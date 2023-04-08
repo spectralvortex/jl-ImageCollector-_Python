@@ -13,10 +13,14 @@ import datetime
 # you want to copy them to another folder, but you don't want to copy duplicates.
 #
 # Usage:
-# 1. Select the source folder (the folder with the images you want to copy)
-# 2. Select the target folder (the folder where you want to copy the images)
-# 3. Click "Start Copy"
-# 4. Wait for the script to finish
+# 1. Run the python file: jl_image_collector.py
+# 2. In the user interface:
+# 	a. Select the source folder (the folder with the images you want to copy)
+# 	b. Select the target folder (the folder where you want to copy the images)
+# 	c. Click "Start Copy"
+# 4. Wait for the script to finish and close the window
+# 5. The copied images, together with a log file with all the images initially 
+#    found, is now in the target folder.
 #
 # This code is made in cooperation with GPT-4 and GitHub Copilot.
 # This code is released under the MIT license.
@@ -86,7 +90,6 @@ def start_copy():
         root.update_idletasks()
 
     result_text_var.set(f"Copied {copied_count} new images to {target_folder}")
-
 
 
 root = tk.Tk()
