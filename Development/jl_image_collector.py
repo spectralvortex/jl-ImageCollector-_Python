@@ -39,11 +39,8 @@ def find_images_in_folder(source_folder, extensions):
     images = []
     for root, _, files in os.walk(source_folder):
         for file in files:
-            try:
-                if file.lower().endswith(extensions):
-                    images.append(os.path.join(root, file))
-            except Exception:
-                pass
+            if file.lower().endswith(extensions):
+                images.append(os.path.join(root, file))
     return images
 
 
