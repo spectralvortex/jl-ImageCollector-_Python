@@ -1,10 +1,12 @@
 import os
 import shutil
 import hashlib
+import threading
+import datetime
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import ttk
-import datetime
+from tkinter import messagebox
 
 # This is a simple script to copy images from a source folder and all its subfolders
 # to a target folder without the subfolders (all collected in only one target folder).
@@ -44,13 +46,30 @@ def find_images_in_folder(source_folder, extensions):
     return images
 
 
-def copy_image_if_unique(image, target_folder, target_hashes):
+def copy_image_if_unique(image, target_folder, target_hashes) -> str:
+
     image_hash = md5(image)
+
     if image_hash not in target_hashes:
-        shutil.copy2(image, target_folder)
-        target_hashes.add(image_hash) # Update the hash list
-        return True
-    return False
+        # Generate a unique destination filename
+        basename = os.path.basename(image)
+        filename, extension = os.path.splitext(basename)
+        destination_image = os.path.join(target_folder, basename)
+
+        index = 1
+        while os.path.exists(destination_image):
+            new_basename = f"{filename}({index}){extension}"
+            destination_image = os.path.join(target_folder, new_basename)
+            index += 1 
+        try:
+            # Copy the image and update the hash list.
+            shutil.copy2(image, destination_image)
+            target_hashes.add(image_hash) # Update the hash list
+            return 'Copied'
+        except Exception as e:
+            return f"Error copying: {e}"
+    else:
+        return 'Duplicate'
 
 
 def browse_source():
@@ -64,33 +83,81 @@ def browse_target():
 
 def start_copy():
 
+    global progress_value
+
+    timestamp_start = datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    timestamp_start_text.set(f"Start time: {timestamp_start}")
+
     source_folder = source_folder_var.get()
     target_folder = target_folder_var.get()
-    extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp')
 
-    images = find_images_in_folder(source_folder, extensions)
-    progress_bar['maximum'] = len(images)
-    copied_count = 0
-    target_hashes = {md5(os.path.join(target_folder, f)) for f in os.listdir(target_folder)}
+    if not os.path.isdir(source_folder) or not os.path.isdir(target_folder):
+        messagebox.showerror("Error", "Both source and target folders must be valid directories.")
+        return
 
-    # Log the image list to a file
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file_name = f"Images_processed_{timestamp}.txt"
-    log_file_path = os.path.join(target_folder, log_file_name)  # Save the log file in the target folder
-    with open(log_file_path, "w") as log_file:
-        for image in images:
-            log_file.write(f"{image}\n")
+    progress_value.set(0)
+    progress_bar["maximum"] = 100  # Set maximum progress value
 
-    # Copy the images
-    for i, image in enumerate(images):
-        copied = copy_image_if_unique(image, target_folder, target_hashes) # Copy the image if it's unique
-        if copied:
-            copied_count += 1
-        progress_bar['value'] = i + 1
-        root.update_idletasks()
+    # Copy in a separate thread.
+    def copy_thread():
+        extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp', '.esp', '.raw', '.cr2', '.nef', '.orf', '.sr2')
+        images = find_images_in_folder(source_folder, extensions)
 
-    result_text_var.set(f"Copied {copied_count} new images to {target_folder}")
+        result_text_var.set(f"Found {len(images)} images in {source_folder}.\nCopying images to {target_folder}...")
 
+        target_hashes = { md5(os.path.join(target_folder, f)) for f in os.listdir(target_folder) if f.lower().endswith(extensions) }
+
+        copied_ok_count = 0
+        copied_skipped_count = 0
+        copy_error_count = 0
+  
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file_name = f"Images_processed_{timestamp}.txt"
+        log_file_path = os.path.join(target_folder, log_file_name)  # Save the log file in the target folder
+       
+        with open(log_file_path, "w", encoding='utf-8', newline='') as log_file:
+
+            for index, image in enumerate(images):
+
+                # Copy the image if it is unique, and write to the log file.
+                copy_result = copy_image_if_unique(image, target_folder, target_hashes)
+                if copy_result == 'Copied':
+                    log_file.write(f"{image} --> OK\n".encode('utf-8').decode('utf-8'))
+                    copied_ok_count += 1
+                elif copy_result == 'Duplicate':
+                    log_file.write(f"{image} --> Skipped (duplicate)\n".encode('utf-8').decode('utf-8'))
+                    copied_skipped_count += 1
+                else:
+                    # Error copying image
+                    log_file.write(f"{image} --> !{copy_result}\n".encode('utf-8').decode('utf-8')) # Write error message to log file
+                    copy_error_count += 1
+
+                progress_value.set(int((index + 1) / len(images) * 100))  # Update progress value (0-100) -> in percent.
+                root.update_idletasks()  # Update progress bar
+
+        progress_value.set(100)  # Set progress value to 100
+
+        update_text(f"Copied {copied_ok_count} new images to the target folder.\n\n" +
+                    f"Skipped {copied_skipped_count} images that already existed in the target folder.\n\n" +
+                    f"Error copying {copy_error_count} images.\n\n" +
+                    f"Log file saved to the following file in the target folder:\n--> {log_file_name}.")
+
+        timestamp_finnished = datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+        timestamp_finnished_text.set(f"End time:  {timestamp_finnished}")
+
+    # Start the copy thread.
+    threading.Thread(target=copy_thread).start()
+
+
+# Update the content of the Text widget
+def update_text(content):
+    text_widget.config(state=tk.NORMAL) # Enable editing
+    text_widget.delete(1.0, tk.END) # Clear the existing content
+    text_widget.insert(tk.END, content)
+    text_widget.config(state=tk.DISABLED) # Disable editing
+
+
+# GUI ---------------------------------------------------------------------------------------------
 
 root = tk.Tk()
 root.title(r"jl{ImageCollector} v0.1")
@@ -98,23 +165,33 @@ root.title(r"jl{ImageCollector} v0.1")
 source_folder_var = tk.StringVar()
 target_folder_var = tk.StringVar()
 result_text_var = tk.StringVar()
+timestamp_start_text = tk.StringVar()
+timestamp_finnished_text = tk.StringVar()
+progress_value = tk.IntVar()
 
 frame = tk.Frame(root, padx=10, pady=10)
 frame.pack()
 
+
 tk.Label(frame, text="Source Folder:").grid(row=0, column=0, sticky=tk.W)
-tk.Entry(frame, textvariable=source_folder_var, width=60).grid(row=0, column=1, padx=5)
+tk.Entry(frame, textvariable=source_folder_var, width=100).grid(row=0, column=1, padx=5)
 tk.Button(frame, text="Browse", command=browse_source).grid(row=0, column=2)
 
 tk.Label(frame, text="Target Folder:").grid(row=1, column=0, sticky=tk.W)
-tk.Entry(frame, textvariable=target_folder_var, width=60).grid(row=1, column=1, padx=5)
+tk.Entry(frame, textvariable=target_folder_var, width=100).grid(row=1, column=1, padx=5)
 tk.Button(frame, text="Browse", command=browse_target).grid(row=1, column=2)
 
 tk.Button(frame, text="Start Copy", command=start_copy).grid(row=2, column=1, pady=10)
-tk.Label(frame, textvariable=result_text_var).grid(row=3, column=0, columnspan=3)
+
+text_widget = tk.Text(frame, wrap=tk.WORD, width=90, height=8, font=("Arial", 9))
+text_widget.grid(row=3, column=0, columnspan=3, pady=10, sticky=tk.W+tk.E) # Adjust row and column as needed
+text_widget.config(state=tk.DISABLED) # Disable editing
 
 progress_bar = ttk.Progressbar(frame, orient=tk.HORIZONTAL, mode='determinate')
 progress_bar.grid(row=4, column=0, columnspan=3, pady=0, sticky=tk.W+tk.E)
+
+tk.Label(frame, textvariable=timestamp_start_text).grid(row=5, column=0, columnspan=3, sticky=tk.W)
+tk.Label(frame, textvariable=timestamp_finnished_text).grid(row=6, column=0, columnspan=3, sticky=tk.W)
 
 
 root.mainloop()
