@@ -145,8 +145,13 @@ def start_copy():
         timestamp_finnished = datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         timestamp_finnished_text.set(f"End time:  {timestamp_finnished}")
 
+        # Re-enable the Start Copy button at the end of the thread.
+        start_copy_button.config(state=tk.NORMAL)
+
     # Start the copy thread.
     threading.Thread(target=copy_thread).start()
+    # Disable the Start Copy button while the thread is running.
+    start_copy_button.config(state=tk.DISABLED)
 
 
 # Update the content of the Text widget
@@ -161,6 +166,7 @@ def update_text(content):
 
 root = tk.Tk()
 root.title(r"jl{ImageCollector} v0.1")
+
 
 source_folder_var = tk.StringVar()
 target_folder_var = tk.StringVar()
@@ -181,13 +187,16 @@ tk.Label(frame, text="Target Folder:").grid(row=1, column=0, sticky=tk.W)
 tk.Entry(frame, textvariable=target_folder_var, width=100).grid(row=1, column=1, padx=5)
 tk.Button(frame, text="Browse", command=browse_target).grid(row=1, column=2)
 
-tk.Button(frame, text="Start Copy", command=start_copy).grid(row=2, column=1, pady=10)
+
+start_copy_button = tk.Button(frame, text="Start Copy", command=start_copy)
+start_copy_button.grid(row=2, column=1, pady=10)
+start_copy_button.config(state=tk.NORMAL) # Disable the Start Copy button until source and target folders are selected.
 
 text_widget = tk.Text(frame, wrap=tk.WORD, width=90, height=8, font=("Arial", 9))
 text_widget.grid(row=3, column=0, columnspan=3, pady=10, sticky=tk.W+tk.E) # Adjust row and column as needed
 text_widget.config(state=tk.DISABLED) # Disable editing
 
-progress_bar = ttk.Progressbar(frame, orient=tk.HORIZONTAL, mode='determinate')
+progress_bar = ttk.Progressbar(frame, orient=tk.HORIZONTAL, mode='determinate', variable=progress_value)
 progress_bar.grid(row=4, column=0, columnspan=3, pady=0, sticky=tk.W+tk.E)
 
 tk.Label(frame, textvariable=timestamp_start_text).grid(row=5, column=0, columnspan=3, sticky=tk.W)
