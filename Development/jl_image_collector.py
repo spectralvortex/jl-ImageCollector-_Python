@@ -29,20 +29,40 @@ from tkinter import messagebox
 #
 # Author: Jan Lægreid, CPT-4, GitHub Copilot - 2023
 
-def md5(file_path):
+def md5(file_path) -> str:
     hash_md5 = hashlib.md5()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
+    try:
+
+        with open(file_path, "rb") as f:
+
+            if os.path.getsize(file_path) == 0:
+                return hash_md5.hexdigest()
+
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+
+    except Exception as e:
+
+        print(f"Error reading file: {e}")
+        return hashlib.md5().hexdigest()
+    
     return hash_md5.hexdigest()
+        
 
-
-def find_images_in_folder(source_folder, extensions):
+def find_images_in_folder(source_folder, extensions, folders_2_avoid=[], min_file_size_kb=0) -> list:
     images = []
     for root, _, files in os.walk(source_folder):
         for file in files:
+            if os.path.basename(root) in folders_2_avoid:
+                continue
             if file.lower().endswith(extensions):
-                images.append(os.path.join(root, file))
+                file_path = os.path.join(root, file)
+                file_size_kb = os.path.getsize(file_path) / 1024
+                
+                if (min_file_size_kb > 0 and file_size_kb >= min_file_size_kb) or (min_file_size_kb == 0 and file_size_kb > 0):
+                    images.append(file_path)
+                else:
+                    images.append(f"{file_path} --> Too small ({file_size_kb} KB)")
     return images
 
 
@@ -101,9 +121,12 @@ def start_copy():
     # Copy in a separate thread.
     def copy_thread():
         extensions = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp', '.esp', '.raw', '.cr2', '.nef', '.orf', '.sr2')
-        images = find_images_in_folder(source_folder, extensions)
+        folders_2_avoid = ('__pycache__', 'node_modules', 'venv', '.git', '.vscode', '.idea', 'dist', 'build', 'cache', 'logs', 'temp',
+                            'tmp', 'temp', 'tmp', 'thumbs', 'thumbnails', 'thumbs.db', 'desktop.ini', 'thumbs.db:encryptable', 'thumbs.db:encryptable$')
+        images = find_images_in_folder(source_folder, extensions, folders_2_avoid)
 
-        result_text_var.set(f"Found {len(images)} images in {source_folder}.\nCopying images to {target_folder}...")
+        initial_status_text = (f"Found {len(images)} images in {source_folder}.\nCopying images to {target_folder}...")
+        update_text(initial_status_text)
 
         target_hashes = { md5(os.path.join(target_folder, f)) for f in os.listdir(target_folder) if f.lower().endswith(extensions) }
 
@@ -119,7 +142,16 @@ def start_copy():
 
             for index, image in enumerate(images):
 
-                # Copy the image if it is unique, and write to the log file.
+                # Copy the image if it is actually on the disk and unique, 
+                # and write to the log file.
+
+                #Check if image contains "--> Too small" and logs it and skip if it does.
+                if "--> Too small" in image:
+                    log_file.write(f"{image}\n".encode('utf-8').decode('utf-8'))
+                    copied_skipped_count += 1
+                    continue #Skips to the next iteration of the loop.
+
+                #Copy the image if it is unique, and write to the log file.
                 copy_result = copy_image_if_unique(image, target_folder, target_hashes)
                 if copy_result == 'Copied':
                     log_file.write(f"{image} --> OK\n".encode('utf-8').decode('utf-8'))
@@ -137,9 +169,10 @@ def start_copy():
 
         progress_value.set(100)  # Set progress value to 100
 
-        update_text(f"Copied {copied_ok_count} new images to the target folder.\n\n" +
-                    f"Skipped {copied_skipped_count} images that already existed in the target folder.\n\n" +
-                    f"Error copying {copy_error_count} images.\n\n" +
+        update_text(initial_status_text + "\n" +
+                    f"Copied {copied_ok_count} new images to the target folder.\n" +
+                    f"Skipped {copied_skipped_count} images that already existed in the target folder.\n" +
+                    f"Error copying {copy_error_count} images.\n" +
                     f"Log file saved to the following file in the target folder:\n--> {log_file_name}.")
 
         timestamp_finnished = datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")
@@ -170,7 +203,6 @@ root.title(r"jl{ImageCollector} v0.1")
 
 source_folder_var = tk.StringVar()
 target_folder_var = tk.StringVar()
-result_text_var = tk.StringVar()
 timestamp_start_text = tk.StringVar()
 timestamp_finnished_text = tk.StringVar()
 progress_value = tk.IntVar()
