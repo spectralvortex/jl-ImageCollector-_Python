@@ -128,10 +128,8 @@ def find_files_in_folder(source_folder, extensions, forbidden_paths_file, folder
     # Avoid files that have a path starting with any of the forbidden paths in the database file.
     # Return a tuple with a list of all files found and the total size of all files found.
 
-    files_found = []
-    total_files_size_bytes = 0
-
-    # Read the forbidden paths from the database file and store them in a set
+    
+    # Read the forbidden paths from the database file and store them in a set.
     forbidden_paths = set()
     try:
         with open(forbidden_paths_file, 'r', encoding='utf-8') as f:
@@ -143,10 +141,22 @@ def find_files_in_folder(source_folder, extensions, forbidden_paths_file, folder
         print(f"Warning: Could not read forbidden paths from file '{forbidden_paths_file}'. Error: {e}")
 
 
+    files_found = []
+    total_files_size_bytes = 0
+    file_count = 0
+    files_found_count = 0
+    progress_text = FileCopyingCurrentStatusTextDict()
+
+    # Loop through all files in the source folder and its subfolders
     for root, _, files in os.walk(source_folder):
 
         for file in files:
 
+            file_count += 1
+
+            # Set some status text to give feedback to the user.
+            progress_text.status_text = f"Number of files nvestegated: {file_count}"
+            
             if os.path.basename(root) in folders_2_avoid:
                 continue
 
@@ -156,7 +166,7 @@ def find_files_in_folder(source_folder, extensions, forbidden_paths_file, folder
             if any(file_path.replace('\\', '/').startswith(forbidden_path) for forbidden_path in forbidden_paths):
                 continue
 
-            # if file.lower().endswith(extensions):
+            # Check if the file's extension is in the list of extensions to look for.
             if os.path.splitext(file)[1].lower() in extensions:
                 
                 file_size_bytes = os.path.getsize(file_path)
@@ -164,12 +174,23 @@ def find_files_in_folder(source_folder, extensions, forbidden_paths_file, folder
 
                 file_size_kb = file_size_bytes / 1024
                 
+                # Check if the file is larger than the minimum file size.
                 if (min_file_size_kb > 0 and file_size_kb >= min_file_size_kb) or (min_file_size_kb == 0 and file_size_kb > 0):
                     # Add the file to the list of files found, since it is larger than the minimum file size.
                     files_found.append(file_path)
+                    files_found_count += 1
                 else:
                     # Add the file to the list of files found, but with a note that it is too small.
                     files_found.append( f"{file_path} --> Too small ({file_size_kb} kb)" )
+                    # Because of the note "--> Too small", the file is not counted as found, allthough it is added to the list of files found.
+
+            # Update the status text to give feedback to the user.
+            progress_text.folder_text = f"Files found: {files_found_count}"
+            progress_text.file_text = ""
+
+            # Yield the current status text to the caller.
+            set_current_status_text(progress_text)
+            
 
     # Format the total size of all files found, so that it is easier to read.
     # The format_unit_4_byte_size function returns a tuple with the formatted size and the unit used.
