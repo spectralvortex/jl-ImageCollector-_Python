@@ -136,9 +136,7 @@ def find_files_in_folder(source_folder, extensions, forbidden_paths_file, folder
     try:
         with open(forbidden_paths_file, 'r', encoding='utf-8') as f:
             
-            # forbidden_paths = {r'{}'.format(line.strip()) for line in f}
             for line in f:
-                # forbidden_paths.add(R'{}'.format(line.strip()))
                 forbidden_paths.add(line.strip().replace('\\', '/'))
 
     except (FileNotFoundError, PermissionError) as e:
