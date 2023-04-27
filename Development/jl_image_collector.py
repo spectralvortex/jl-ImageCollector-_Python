@@ -222,6 +222,39 @@ def browse_forbidden_paths_file():
     forbidden_paths_file_var.set(forbidden_paths_file)
 
 
+# Update the content of the Text widget used for displaying the log.
+def set_current_status_text(progress_info_text: FileCopyingCurrentStatusTextDict):
+    progress_bar_info_text_current_status.set(progress_info_text.status_text)
+    progress_bar_info_text_current_folder.set(progress_info_text.folder_text)
+    progress_bar_info_text_current_file.set(progress_info_text.file_text)
+    root.update_idletasks()
+
+
+# Update progress bar value and progress bar info text.
+def update_progress(progress_index, total, info_text_ending, file) -> int:
+    progress_text = FileCopyingCurrentStatusTextDict()
+    progress_index += 1
+    progress_percent = (progress_index) / total * 100
+    progress_text.status_text = f"{progress_percent:.2f}% ({progress_index}/{total}) {info_text_ending}"
+    progress_text.folder_text = f"-> Folder: {os.path.dirname(file)}"
+    progress_text.file_text = f"-> File: {os.path.basename(file)}"
+
+    progress_bar_value.set(progress_percent)  # Update progress value (0-100) -> in percent.
+    set_current_status_text(progress_text)  # Update progress bar info text
+    
+    root.update_idletasks()  # Update progress bar
+    return progress_index
+
+
+# Update the content of the Text widget
+def update_log_text_panel(text_content: str):
+    text_widget.config(state=tk.NORMAL) # Enable editing
+    text_widget.delete(1.0, tk.END) # Clear the existing content
+    text_widget.insert(tk.END, text_content)
+    text_widget.config(state=tk.DISABLED) # Disable editing
+
+
+
 def start_copy():
 
     # Get start time and update the start time text.
@@ -241,39 +274,7 @@ def start_copy():
     # Initialize progress bar and progress bar info text.
     progress_bar_value.set(0)
     progress_bar["maximum"] = 100  # Set maximum progress value
-    progress_text = FileCopyingCurrentStatusTextDict()
-
-
-   # Update the content of the Text widget used for displaying the log.
-    def set_current_status_text(progress_info_text: FileCopyingCurrentStatusTextDict):
-        progress_bar_info_text_current_status.set(progress_info_text.status_text)
-        progress_bar_info_text_current_folder.set(progress_info_text.folder_text)
-        progress_bar_info_text_current_file.set(progress_info_text.file_text)
-        root.update_idletasks()
-
-
-    # Update progress bar value and progress bar info text.
-    def update_progress(progress_index, total, info_text_ending, file) -> int:
-        progress_index += 1
-        progress_percent = (progress_index) / total * 100
-        progress_text.status_text = f"{progress_percent:.2f}% ({progress_index}/{total}) {info_text_ending}"
-        progress_text.folder_text = f"-> Folder: {os.path.dirname(file)}"
-        progress_text.file_text = f"-> File: {os.path.basename(file)}"
-
-        progress_bar_value.set(progress_percent)  # Update progress value (0-100) -> in percent.
-        set_current_status_text(progress_text)  # Update progress bar info text
-        
-        root.update_idletasks()  # Update progress bar
-        return progress_index
-
-
-    # Update the content of the Text widget
-    def update_log_text_panel(text_content: str):
-        text_widget.config(state=tk.NORMAL) # Enable editing
-        text_widget.delete(1.0, tk.END) # Clear the existing content
-        text_widget.insert(tk.END, text_content)
-        text_widget.config(state=tk.DISABLED) # Disable editing
-
+    progress_bar_info_text_current_status.set("Initializing...")
 
     # Copy in a separate thread.
     def copy_thread():
