@@ -350,6 +350,7 @@ def start_copy():
         copied_ok_count = 0
         copied_skipped_count = 0
         copy_error_count = 0
+        file_size_copied_sum = 0
         
         # Iteriate through the files and copy them to the target folder while logging the results.
         with open(log_file_path, "w", encoding='utf-8', newline='') as log_file:
@@ -371,6 +372,7 @@ def start_copy():
                 if copy_result == 'Copied':
                     log_file.write(f"{os.path.normpath(f)} --> OK\n".encode('utf-8').decode('utf-8'))
                     copied_ok_count += 1
+                    file_size_copied_sum += os.path.getsize(f)
                 elif copy_result == 'Duplicate':
                     log_file.write(f"{os.path.normpath(f)} --> Skipped (duplicate)\n".encode('utf-8').decode('utf-8'))
                     copied_skipped_count += 1
@@ -386,11 +388,14 @@ def start_copy():
             progress_bar_value.set(100)  # Set progress value to 100
             set_current_status_text(FileCopyingCurrentStatusTextDict(status_text="Finished!"))
 
+            total_bytes_copied = format_unit_4_byte_size(file_size_copied_sum)
+
             # Create the summary text and update the log text panel.
-            initial_status_log_text += f"\nCopied {copied_ok_count} new {selected_file_types_to_copy} to the target folder.\n" + \
-                                   f"Skipped {copied_skipped_count} {selected_file_types_to_copy} duplicates.\n" + \
-                                   f"Error copying {copy_error_count} {selected_file_types_to_copy}.\n" + \
-                                   f"Log file saved to the following file in the target folder --> \{log_folder_name}\{log_file_name}."
+            initial_status_log_text += f"\nCopied {copied_ok_count} new {selected_file_types_to_copy} to the target folder" + \
+                                      f" --> {total_bytes_copied['value']} {total_bytes_copied['unit']} total.\n" + \
+                                      f"Skipped {copied_skipped_count} {selected_file_types_to_copy} duplicates.\n" + \
+                                      f"Error copying {copy_error_count} {selected_file_types_to_copy}.\n" + \
+                                      f"Log file saved to the following file in the target folder --> \{log_folder_name}\{log_file_name}."
             
             update_log_text_panel(initial_status_log_text)
 
