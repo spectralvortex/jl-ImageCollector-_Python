@@ -99,7 +99,7 @@ class FileCopyingCurrentStatusTextDict():
 
 
 
-def md5(file_path) -> str:
+def md5(file_path: str) -> str:
     # Calculate the MD5 hash of a file.
     # Return the MD5 hash as a string.
 
@@ -120,9 +120,37 @@ def md5(file_path) -> str:
         return hashlib.md5().hexdigest()
     
     return hash_md5.hexdigest()
-        
 
-def find_files_in_folder(source_folder, extensions, forbidden_paths_file, folders_2_avoid=[], min_file_size_kb=0) -> tuple:
+
+def read_hashes_from_file(file_path: str) -> set:
+    # Read the hashes from a file.
+    # Return a set with the hashes.
+    hashes = set()
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                hashes.add(line.strip())
+    except FileNotFoundError:
+        print(f"Warning: Hash file not found: {file_path}")
+    except PermissionError as e:
+        print(f"Warning: Could not read hashes from file '{file_path}'. Error: {e}")
+    return hashes
+
+
+def save_hashes_to_file(file_path: str, hashes: set) -> bool:
+    # Save the hashes to a file.
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            for h in hashes:
+                f.write(f"{h}\n")
+    except PermissionError as e:
+        print(f"Warning: Could not save hashes to file '{file_path}'. Error: {e}")
+        return False
+    return True
+
+
+        
+def find_files_in_folder(source_folder: str, extensions, forbidden_paths_file: str, folders_2_avoid: list=[], min_file_size_kb: int=0) -> tuple:
     # Find all files in a folder and its subfolders that match the specified extensions.
     # Avoid folders that are in the folders_2_avoid list.
     # Avoid files that have a path starting with any of the forbidden paths in the database file.
@@ -200,7 +228,7 @@ def find_files_in_folder(source_folder, extensions, forbidden_paths_file, folder
     return (files_found, total_files_size_formatted)
 
 
-def copy_file_if_unique(file, target_folder, target_hashes) -> str:
+def copy_file_if_unique(file, target_folder: str, target_hashes: set, hash_file_path: str) -> str:
     # Check if the file is unique (not already in the target folder) and copy it if it is.
     # Return a string with the status of the copy operation.
 
@@ -223,6 +251,7 @@ def copy_file_if_unique(file, target_folder, target_hashes) -> str:
             # Copy the image and update the hash list.
             shutil.copy2(file, destination_file)
             target_hashes.add(file_hash) # Update the hash list
+            save_hashes_to_file(hash_file_path, target_hashes)  # Save the target hashes to a file.
             return 'Copied'
         except Exception as e:
             return f"Error copying: {e}"
@@ -299,7 +328,12 @@ def start_copy():
 
     # Copy in a separate thread.
     def copy_thread():
-        
+
+        hash_file_folder_name = "hashes"
+        hash_file_path = os.path.join(target_folder, hash_file_folder_name )
+        os.makedirs(hash_file_path, exist_ok=True)  # Create the log_files folder if it doesn't exist
+        hash_file_path = os.path.join(hash_file_path, "hashes.jllog") # Path to the file containing the hashes of the files in the target folder.
+
         # Define the folders to avoid.
         folders_2_avoid = ('__pycache__', 'node_modules', 'venv', '.git', '.vscode', '.idea', 'dist', 'build', 'cache', 'logs', 'temp',
                             'tmp', 'temp', 'tmp', 'thumbs', 'thumbnails', 'thumbs.db', 'desktop.ini', 'thumbs.db:encryptable', 'thumbs.db:encryptable$')
@@ -320,18 +354,26 @@ def start_copy():
                                    f"Harvesting file hashes for files already in the target folder...")
         update_log_text_panel(initial_status_log_text)
         
-        # Get all files in the target folder and calculate the total number of files -> to be used for the progress bar.
-        target_files = [f for f in os.listdir(target_folder) if f.lower().endswith(extensions)]
-        total_target_files = len(target_files)
-
-        # Calculate the md5 hash for each file in the target folder and store it in a set while updating the progress bar.
         progress_index= 0
         target_hashes = set()
-        for f in target_files:
-            file_path = os.path.join(target_folder, f)
-            target_hashes.add(md5(file_path))
-            progress_index = update_progress(progress_index, total_target_files, "- md5 hash",f)
 
+        # Check if the user wants to update the hash list from scratch.
+        if update_hash_list_from_scratch_var.get() == False:
+            # Read the target hashes from the file with the saved hashes.
+            target_hashes = read_hashes_from_file(hash_file_path)
+        
+        if not target_hashes:
+            # Get all files in the target folder and calculate the total number of files -> to be used for the progress bar.
+            target_files = [f for f in os.listdir(target_folder) if f.lower().endswith(extensions)]
+            total_target_files = len(target_files)
+            # Calculate the md5 hash for each file in the target folder and store it in a set while updating the progress bar.
+            target_hashes = set()
+            for f in target_files:
+                file_path = os.path.join(target_folder, f)
+                target_hashes.add(md5(file_path)) # Add the md5 hash to the set.
+                save_hashes_to_file(hash_file_path, target_hashes)  # Save the target hashes to a file.
+                progress_index = update_progress(progress_index, total_target_files, "- md5 hash",f)
+        
         # Create a log folder in the target folder
         log_folder_name = "log_files"
         log_folder_path = os.path.join(target_folder, log_folder_name )
@@ -368,7 +410,7 @@ def start_copy():
                     continue #Skips to the next iteration of the loop.
 
                 #Copy the file if it is unique, and write to the log file.
-                copy_result = copy_file_if_unique(f, target_folder, target_hashes)
+                copy_result = copy_file_if_unique(f, target_folder, target_hashes, hash_file_path)
                 if copy_result == 'Copied':
                     log_file.write(f"{os.path.normpath(f)} --> OK\n".encode('utf-8').decode('utf-8'))
                     copied_ok_count += 1
@@ -434,37 +476,34 @@ root.title(r"jl{ImageCollector} v0.2")
 root.geometry("800x420")  # Set the window size
 root.resizable(False, False)  # Disable resizing
 
-# Variables
-source_folder_var = tk.StringVar()
-target_folder_var = tk.StringVar()
-forbidden_paths_file_var = tk.StringVar()
-timestamp_start_text = tk.StringVar()
-timestamp_finished_text = tk.StringVar()
-format_selector_var = tk.StringVar()
-progress_bar_value = tk.IntVar()
-progress_bar_info_text_current_status = tk.StringVar()
-progress_bar_info_text_current_folder = tk.StringVar()
-progress_bar_info_text_current_file = tk.StringVar()
-
 frame = tk.Frame(root, padx=10, pady=10)
 frame.pack()
 
 # Source folder
+source_folder_var = tk.StringVar()
 tk.Label(frame, text="Source Folder:").grid(row=0, column=0, sticky=tk.W)
 tk.Entry(frame, textvariable=source_folder_var, width=90).grid(row=0, column=1, padx=5)
 tk.Button(frame, text="Browse", command=browse_source).grid(row=0, column=2)
 
 # Target folder
+target_folder_var = tk.StringVar()
 tk.Label(frame, text="Target Folder:").grid(row=1, column=0, sticky=tk.W)
 tk.Entry(frame, textvariable=target_folder_var, width=90).grid(row=1, column=1, padx=5)
 tk.Button(frame, text="Browse", command=browse_target).grid(row=1, column=2)
 
 # Forbidden pats file
+forbidden_paths_file_var = tk.StringVar()
 tk.Label(frame, text="File containg forbidden paths:").grid(row=2, column=0, sticky=tk.W)
 tk.Entry(frame, textvariable=forbidden_paths_file_var, width=90).grid(row=2, column=1, padx=5)
 tk.Button(frame, text="Browse", command=browse_forbidden_paths_file).grid(row=2, column=2)
 
+# Checkbox for if the hash list of the target folder should be updated.
+update_hash_list_from_scratch_var = tk.IntVar()
+update_hash_list_from_scratch_checkbox = tk.Checkbutton(frame, text="Update the hash list from scratch.", variable=update_hash_list_from_scratch_var)
+update_hash_list_from_scratch_checkbox.grid(row=3, column=0, columnspan=2, sticky=tk.W)
+
 # File format selector
+format_selector_var = tk.StringVar()
 format_selector = ttk.Combobox(frame, values=FileTypes2Copy().file_types, textvariable=format_selector_var, width=20)
 format_selector.grid(row=3, column=1, padx=5, sticky=tk.E)
 format_selector.current(0)
@@ -480,6 +519,10 @@ text_widget.grid(row=4, column=0, columnspan=3, pady=0, sticky=tk.W+tk.E) # Adju
 text_widget.config(state=tk.DISABLED) # Disable editing
 
 # Progress bar
+progress_bar_value = tk.IntVar()
+progress_bar_info_text_current_status = tk.StringVar()
+progress_bar_info_text_current_folder = tk.StringVar()
+progress_bar_info_text_current_file = tk.StringVar()
 progress_bar = ttk.Progressbar(frame, orient=tk.HORIZONTAL, length= 100, mode='determinate', variable=progress_bar_value)
 progress_bar.grid(row=5, column=0, columnspan=3, pady=10, sticky=tk.E+tk.W)
 tk.Label(frame, textvariable=progress_bar_info_text_current_status).grid(row=6, column=0, columnspan=3, sticky=tk.W)
@@ -487,6 +530,8 @@ tk.Label(frame, textvariable=progress_bar_info_text_current_folder).grid(row=7, 
 tk.Label(frame, textvariable=progress_bar_info_text_current_file).grid(row=8, column=0, columnspan=3, sticky=tk.W)
 
 # Timestamps
+timestamp_start_text = tk.StringVar()
+timestamp_finished_text = tk.StringVar()
 tk.Label(frame, textvariable=timestamp_start_text).grid(row=9, column=0, columnspan=3, sticky=tk.W)
 tk.Label(frame, textvariable=timestamp_finished_text).grid(row=10, column=0, columnspan=3, sticky=tk.W)
 

@@ -1,6 +1,6 @@
 
 # This function converts a byte size into a human readable format.
-def format_unit_4_byte_size(bytes) -> dict:
+def format_unit_4_byte_size(bytes: int) -> dict:
     units = ["bytes", "KB", "MB", "GB", "TB"]
     index = 0
     size = float(bytes)
