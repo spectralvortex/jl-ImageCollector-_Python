@@ -183,7 +183,7 @@ def find_files_in_folder(source_folder: str, extensions, forbidden_paths_file: s
             file_count += 1
 
             # Set some status text to give feedback to the user.
-            progress_text.status_text = f"Number of files nvestegated: {file_count}"
+            progress_text.status_text = f"Number of files investegated: {file_count}"
             
             if os.path.basename(root) in folders_2_avoid:
                 continue
@@ -473,7 +473,7 @@ def start_copy():
 
 root = tk.Tk()
 root.title(r"jl{ImageCollector} v0.2")
-root.geometry("800x420")  # Set the window size
+root.geometry("820x420")  # Set the window size
 root.resizable(False, False)  # Disable resizing
 
 frame = tk.Frame(root, padx=10, pady=10)
