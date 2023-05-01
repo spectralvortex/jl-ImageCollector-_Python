@@ -163,7 +163,7 @@ def find_files_in_folder(source_folder: str, extensions, forbidden_paths_file: s
         with open(forbidden_paths_file, 'r', encoding='utf-8') as f:
             
             for line in f:
-                forbidden_paths.add(line.strip().replace('\\', '/'))
+                forbidden_paths.add(line.strip().replace('\\', '/').lower())
 
     except (FileNotFoundError, PermissionError) as e:
         print(f"Warning: Could not read forbidden paths from file '{forbidden_paths_file}'. Error: {e}")
@@ -191,7 +191,7 @@ def find_files_in_folder(source_folder: str, extensions, forbidden_paths_file: s
             file_path = os.path.join(root, file)
             
             # Check if the file's path starts with any of the forbidden paths, and if so, skip the file
-            if any(file_path.replace('\\', '/').startswith(forbidden_path) for forbidden_path in forbidden_paths):
+            if any(file_path.replace('\\', '/').lower().startswith(forbidden_path) for forbidden_path in forbidden_paths):
                 continue
 
             # Check if the file's extension is in the list of extensions to look for.
@@ -338,6 +338,9 @@ def start_copy():
         folders_2_avoid = ('__pycache__', 'node_modules', 'venv', '.git', '.vscode', '.idea', 'dist', 'build', 'cache', 'logs', 'temp',
                             'tmp', 'temp', 'tmp', 'thumbs', 'thumbnails', 'thumbs.db', 'desktop.ini', 'thumbs.db:encryptable', 'thumbs.db:encryptable$')
         
+        # Reset the infotext panel.
+        update_log_text_panel("")
+
         # Get the file types to copy as string from the format selector combobox and
         # get the proper file extensions from the selected file types to copy ('images', 'videos', 'images and videos')
         # to use for the file search.
