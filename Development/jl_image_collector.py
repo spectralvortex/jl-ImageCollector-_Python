@@ -37,7 +37,7 @@ class FileTypes2Copy:
 
         # Define the possible file extensions.
 
-        images = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp', '.esp', '.raw', '.cr2', '.nef', '.orf', '.sr2')
+        images = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp', '.esp', '.raw', '.cr2', '.nef', '.orf', '.sr2', '.heic')
 
         videos = ('.mp4', '.avi', '.mov', '.thm', '.wmv', '.flv', '.webm', '.mkv', '.m4v', '.mpg', '.mpeg', '.3gp', '.3g2', '.mxf', 
                 '.mts', '.m2ts', '.ts', '.vob', '.m2v', '.asf', '.rm', '.rmvb', '.ogv', '.ogm', '.ogx', '.qt', '.divx', '.xvid')
